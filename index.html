@@ -136,8 +136,7 @@
 const CELL = 8;           // grid cell size in px (base)
 const COLS = 100;         // grid columns
 const ROWS = 72;          // grid rows
-const BASE_SPEED = 6;     // cells per second * 10 (timestep units)
-const SPEED = 0.12;       // cells per fixed-tick
+const SPEED = 0.12;       // cells advanced per 60fps tick (~7.2 cells/sec)
 const WIN_SCORE = 5;
 const TICK_MS = 1000 / 60;
 
@@ -555,6 +554,7 @@ function startRound() {
     alive: true,
     trail: [],
     speed: SPEED,
+    moveAcc: 0,          // fractional movement accumulator
   };
 
   // AI starts right side, heading left
@@ -567,6 +567,7 @@ function startRound() {
     alive: true,
     trail: [],
     speed: DIFFICULTY[currentDiff].aiSpeed,
+    moveAcc: 0,          // fractional movement accumulator
   };
 
   // Mark starting positions
@@ -687,15 +688,19 @@ function stepGame() {
     return; // don't move during countdown
   }
 
-  // Apply pending player turn
-  if (pendingTurn) {
+  // Determine which cycles will move this tick
+  const p1WillMove = p1.alive && (p1.moveAcc + p1.speed) >= 1.0;
+  const p2WillMove = p2.alive && (p2.moveAcc + p2.speed) >= 1.0;
+
+  // Apply pending player turn only when about to move
+  if (p1WillMove && pendingTurn) {
     p1.nextDx = pendingTurn.dx;
     p1.nextDy = pendingTurn.dy;
     pendingTurn = null;
   }
 
-  // AI decides
-  updateAI();
+  // AI decides only when about to move
+  if (p2WillMove) updateAI();
 
   // Move both cycles
   moveCycle(p1);
@@ -739,6 +744,13 @@ function stepGame() {
 
 function moveCycle(c) {
   if (!c.alive) return;
+
+  // Fractional movement: accumulate speed per tick, only advance
+  // when accumulator reaches 1.0. At speed 0.12 this gives ~7.2
+  // cells/second instead of 60 cells/second.
+  c.moveAcc += c.speed;
+  if (c.moveAcc < 1.0) return;
+  c.moveAcc -= 1.0;
 
   // Apply turn
   applyTurn(c);
@@ -941,8 +953,10 @@ function drawTrails() {
 }
 
 function drawCycle(c, color, glow) {
-  const px = c.x * cellSize;
-  const py = c.y * cellSize;
+  // Interpolate position for smooth movement between cells
+  const frac = c.moveAcc || 0;
+  const px = (c.x + c.dx * frac) * cellSize;
+  const py = (c.y + c.dy * frac) * cellSize;
   const cs = cellSize;
   const cx = px + cs / 2;
   const cy = py + cs / 2;
