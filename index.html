@@ -229,7 +229,7 @@ function initAudio() {
   musicGainNode.gain.value = 0.28;
   musicGainNode.connect(audioCtx.destination);
   sfxGainNode = audioCtx.createGain();
-  sfxGainNode.gain.value = 0.4;
+  sfxGainNode.gain.value = 0.22;
   sfxGainNode.connect(audioCtx.destination);
 }
 
@@ -424,39 +424,44 @@ function playSfx(type) {
   if (!audioCtx) return;
   const t = audioCtx.currentTime;
   if (type === 'crash') {
-    // Noise burst + low thud
-    const bufLen = audioCtx.sampleRate * 0.3;
+    // Muffled explosion — filtered noise + sub thud, not piercing
+    const bufLen = audioCtx.sampleRate * 0.4;
     const buf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);
     const data = buf.getChannelData(0);
-    for (let i = 0; i < bufLen; i++) data[i] = (Math.random()*2-1) * Math.exp(-i / (audioCtx.sampleRate * 0.05));
+    for (let i = 0; i < bufLen; i++) data[i] = (Math.random()*2-1) * Math.exp(-i / (audioCtx.sampleRate * 0.08));
     const src = audioCtx.createBufferSource();
     src.buffer = buf;
     const filter = audioCtx.createBiquadFilter();
-    filter.type = 'lowpass'; filter.frequency.value = 800;
+    filter.type = 'lowpass'; filter.frequency.value = 500;
     const gain = audioCtx.createGain();
-    gain.gain.setValueAtTime(0.3, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    gain.gain.setValueAtTime(0.18, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
     src.connect(filter); filter.connect(gain); gain.connect(sfxGainNode);
     src.start(t);
-    // Low thud
+    // Sub thud
     const osc = audioCtx.createOscillator();
-    osc.frequency.setValueAtTime(90, t);
-    osc.frequency.exponentialRampToValueAtTime(30, t + 0.2);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(80, t);
+    osc.frequency.exponentialRampToValueAtTime(25, t + 0.3);
     const g2 = audioCtx.createGain();
-    g2.gain.setValueAtTime(0.35, t);
-    g2.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    g2.gain.setValueAtTime(0.22, t);
+    g2.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
     osc.connect(g2); g2.connect(sfxGainNode);
-    osc.start(t); osc.stop(t + 0.3);
+    osc.start(t); osc.stop(t + 0.4);
   } else if (type === 'turn') {
+    // Soft mechanical click — low sine, very short, very quiet
     const osc = audioCtx.createOscillator();
-    osc.type = 'square';
-    osc.frequency.value = 600;
-    osc.frequency.exponentialRampToValueAtTime(300, t + 0.05);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(140, t);
+    osc.frequency.exponentialRampToValueAtTime(80, t + 0.03);
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 200;
     const gain = audioCtx.createGain();
-    gain.gain.setValueAtTime(0.08, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
-    osc.connect(gain); gain.connect(sfxGainNode);
-    osc.start(t); osc.stop(t + 0.06);
+    gain.gain.setValueAtTime(0.025, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.035);
+    osc.connect(filter); filter.connect(gain); gain.connect(sfxGainNode);
+    osc.start(t); osc.stop(t + 0.04);
   } else if (type === 'win') {
     [440, 554, 659, 880].forEach((f, i) => {
       const osc = audioCtx.createOscillator();
@@ -470,23 +475,29 @@ function playSfx(type) {
       osc.start(st); osc.stop(st + 0.22);
     });
   } else if (type === 'countdown') {
+    // Soft low blip — triangle, low freq, gentle
     const osc = audioCtx.createOscillator();
-    osc.type = 'square';
-    osc.frequency.value = 400;
+    osc.type = 'triangle';
+    osc.frequency.value = 220;
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass'; filter.frequency.value = 400;
     const gain = audioCtx.createGain();
-    gain.gain.setValueAtTime(0.15, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
-    osc.connect(gain); gain.connect(sfxGainNode);
-    osc.start(t); osc.stop(t + 0.16);
+    gain.gain.setValueAtTime(0.08, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+    osc.connect(filter); filter.connect(gain); gain.connect(sfxGainNode);
+    osc.start(t); osc.stop(t + 0.13);
   } else if (type === 'go') {
+    // Sub swoosh — low sine sweep, not harsh
     const osc = audioCtx.createOscillator();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(200, t);
-    osc.frequency.exponentialRampToValueAtTime(800, t + 0.2);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(150, t);
+    osc.frequency.exponentialRampToValueAtTime(500, t + 0.2);
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass'; filter.frequency.value = 800;
     const gain = audioCtx.createGain();
-    gain.gain.setValueAtTime(0.2, t);
+    gain.gain.setValueAtTime(0.1, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-    osc.connect(gain); gain.connect(sfxGainNode);
+    osc.connect(filter); filter.connect(gain); gain.connect(sfxGainNode);
     osc.start(t); osc.stop(t + 0.3);
   }
 }
@@ -932,30 +943,89 @@ function drawTrails() {
 function drawCycle(c, color, glow) {
   const px = c.x * cellSize;
   const py = c.y * cellSize;
-  // Glow
-  ctx.shadowColor = glow;
-  ctx.shadowBlur = 20;
-  ctx.fillStyle = color;
-  ctx.fillRect(px, py, cellSize, cellSize);
-  // Bright core
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(px + cellSize * 0.25, py + cellSize * 0.25, cellSize * 0.5, cellSize * 0.5);
-  ctx.shadowBlur = 0;
+  const cs = cellSize;
+  const cx = px + cs / 2;
+  const cy = py + cs / 2;
 
-  // Direction indicator
-  const cx = px + cellSize / 2;
-  const cy = py + cellSize / 2;
+  // Determine orientation angle from direction
+  let angle = 0;
+  if (c.dx === 1) angle = 0;
+  else if (c.dx === -1) angle = Math.PI;
+  else if (c.dy === 1) angle = Math.PI / 2;
+  else if (c.dy === -1) angle = -Math.PI / 2;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+
+  const len = cs * 2.2;   // body length (along travel direction)
+  const wid = cs * 0.9;   // body width
+
+  // — Trail glow behind cycle —
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = color + '40';
+  ctx.fillRect(-len * 0.6, -wid * 0.35, len * 0.35, wid * 0.7);
+
+  // — Main body: elongated hexagon —
+  ctx.shadowBlur = 18;
   ctx.fillStyle = color;
   ctx.beginPath();
-  const tip = cellSize * 1.2;
-  ctx.moveTo(cx + c.dx * tip, cy + c.dy * tip);
-  ctx.lineTo(cx + c.dy * tip * 0.5 - c.dx * tip * 0.3, cy - c.dx * tip * 0.5 - c.dy * tip * 0.3);
-  ctx.lineTo(cx - c.dy * tip * 0.5 - c.dx * tip * 0.3, cy + c.dx * tip * 0.5 - c.dy * tip * 0.3);
+  ctx.moveTo(len * 0.5, 0);                         // nose tip
+  ctx.lineTo(len * 0.25, -wid * 0.5);               // front-left shoulder
+  ctx.lineTo(-len * 0.35, -wid * 0.5);              // rear-left
+  ctx.lineTo(-len * 0.5, -wid * 0.25);              // rear-left taper
+  ctx.lineTo(-len * 0.5, wid * 0.25);               // rear-right taper
+  ctx.lineTo(-len * 0.35, wid * 0.5);               // rear-right
+  ctx.lineTo(len * 0.25, wid * 0.5);                // front-right shoulder
   ctx.closePath();
+  ctx.fill();
+
+  // — Body highlight stripe (lighter shade) —
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.beginPath();
+  ctx.moveTo(len * 0.45, 0);
+  ctx.lineTo(len * 0.2, -wid * 0.3);
+  ctx.lineTo(-len * 0.3, -wid * 0.3);
+  ctx.lineTo(-len * 0.3, wid * 0.3);
+  ctx.lineTo(len * 0.2, wid * 0.3);
+  ctx.closePath();
+  ctx.fill();
+
+  // — Canopy / cockpit —
   ctx.shadowColor = glow;
-  ctx.shadowBlur = 15;
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.beginPath();
+  ctx.ellipse(len * 0.05, 0, wid * 0.22, wid * 0.14, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.shadowBlur = 0;
+
+  // — Front headlight —
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(len * 0.42, -wid * 0.06, len * 0.08, wid * 0.12);
+
+  // — Wheels (side ridges) —
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  // Left wheel
+  ctx.fillRect(-len * 0.32, -wid * 0.52, len * 0.4, wid * 0.08);
+  // Right wheel
+  ctx.fillRect(-len * 0.32, wid * 0.44, len * 0.4, wid * 0.08);
+
+  // — Rear exhaust glow —
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = 14;
+  ctx.fillStyle = color;
+  ctx.fillRect(-len * 0.52, -wid * 0.18, len * 0.05, wid * 0.36);
+
+  // Bright exhaust core
+  ctx.fillStyle = '#fff';
+  ctx.shadowBlur = 8;
+  ctx.fillRect(-len * 0.5, -wid * 0.1, len * 0.03, wid * 0.2);
+
+  ctx.shadowBlur = 0;
+  ctx.restore();
 }
 
 function drawParticles() {
